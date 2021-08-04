@@ -1,0 +1,258 @@
+1                                                          The SAS System                          Friday, July  9, 2021 07:51:00 AM
+
+NOTE: Copyright (c) 2016 by SAS Institute Inc., Cary, NC, USA. 
+NOTE: SAS (r) Proprietary Software V.03.05 (TS5M0 MBCS3170) 
+      Licensed to HSBC CRED DEC UK- PROD. PATCH/DEV, Site 70262168.
+NOTE: This session is executing on the Linux 3.10.0-693.11.1.el7.x86_64 (LIN X64) platform.
+
+
+
+NOTE: Analytical products:
+      
+      SAS/STAT 15.1
+
+NOTE: Additional host information:
+
+ Linux LIN X64 3.10.0-693.11.1.el7.x86_64 #1 SMP Mon Dec 4 23:52:40 UTC 2017 x86_64 CentOS Linux release 7.4.1708 (Core)  
+
+NOTE: SAS initialization used:
+      real time           0.02 seconds
+      cpu time            0.02 seconds
+      
+1          /* Write log output from included programs */
+2          options source2;
+3          
+4          /* Load var setting script */
+5          %let curdir=%sysget(curdir);
+6          %let file=/setvars.sas;
+7          %include "&curdir.&file.";
+NOTE: %INCLUDE (level 1) file /home/centos/perf-army/casperf_baseline-master/setvars.sas is file 
+      /home/centos/perf-army/casperf_baseline-master/setvars.sas.
+8         +/* Set variables for environment */
+9         +/* ----------------------------- */
+10        +%let runplatform="Viya3-5 Army";  /*Give a name to your platform and possibly add
+11        +an identifier for an individual run if you plan several per day. Run date is captured
+12        +automatically.  This will serve to compare individual runs later in reporting. */
+13        +
+14        +%let cassrv=node3.cluster.local;  /* CAS controller hostname */
+15        +
+16        +%let targlib=public;  /* CAS library that will host the generated data sets while
+17        +running the tests and the final performance data set. */
+18        +
+19        +%let perftable=perf_stats; /*CAS table to hold the performance stats.*/
+20        +
+21        +%let usr=alessiot;  /*User used to connect to CAS.  Should be the one in the .authinfo file. */
+22        +
+23        +%let nworkers=1; /* number of CAS worker nodes in setup.  0 for SMP.*/
+24        +
+25        +%let coresw=8; /*number of cores per CAS worker node (or controller in SMP), obtained
+26        +through eg. lscpu*/
+27        +
+28        +%let ghzw=2.0; /*speed of the CAS worker's cpu's, obtained through eg. lscpu*/
+29        +
+30        +%let memw=32; /*memory per CAS worker node, eg. vmstat -s*/
+31        +
+32        +
+33        +
+34        +
+35        +
+36        +/*---------------------------------------------------*/
+37        +/*Code defined for other scripts.  Don't change this.*/
+2                                                          The SAS System                          Friday, July  9, 2021 07:51:00 AM
+
+38        +/* Capture script input */
+39        +%let conc = %sysget(conc);
+WARNING: The argument to macro function %SYSGET is not defined as a system variable.
+40        +%let dataset=%sysget(data);
+41        +%let rundate=%sysget(rundate);
+WARNING: The argument to macro function %SYSGET is not defined as a system variable.
+42        +%let curdir=%sysget(curdir);
+43        +%let authfile=/.authinfo;
+44        +%let authinfo=&curdir.&authfile.;
+45        +%let bigdiskloc=&curdir.;
+46        +
+47        +/*Define macro to set record count for dataset*/
+48        +%macro get_table_size(inset,macvar);
+49        + data _null_;
+50        +  set &inset NOBS=size;
+51        +  call symput("&macvar",size);
+52        + stop;
+53        + run;
+54        +%mend;
+55        +
+56        +/*Define result writing macro*/
+57        +%macro recordperf();
+58        +data work.tempperf;
+59        +		format rundate ddmmyy10.;
+60        +		
+61        +		runplatform=&runplatform.;
+62        +		rundate=%sysfunc(inputn(&rundate.,ddmmyy10.));
+63        +		nworkers=&nworkers.;
+64        +		coresw=&coresw.;
+65        +		ghzw=&ghzw.;
+66        +		memw=&memw.;
+67        +		qclass=&qclass.;
+68        +		graph=&graph.;
+69        +		query=&qname.;
+70        +		reccount=&reccount.;
+71        +		concses=&conc.;
+72        +		runtime = &stoptime.-&starttime.;
+73        +run;
+74        +
+75        +proc append base=bigdisk.perfstats_mc data=work.tempperf;
+76        +run;
+77        +%mend;
+78        +/*---------------------------------------------------*/
+NOTE: %INCLUDE (level 1) ending.
+79         
+80         /*  Start a session named mySession using the existing CAS server connection */
+81         /*  Assign SAS libs to CAS libs                                              */
+82         
+83         options cashost="&cassrv." casport=5570 ;
+84         
+85         cas mySession sessopts=(caslib=&targlib. timeout=1800 locale="en_US")
+86         user="&usr." authinfo="&authinfo.";
+NOTE: The session MYSESSION connected successfully to Cloud Analytic Services node3.cluster.local using port 5570. The UUID is 
+      210635ca-1e8b-b14a-bbbd-f05c7065bbf3. The user is alessiot and the active caslib is CASUSERHDFS(alessiot).
+NOTE: The SAS option SESSREF was updated with the value MYSESSION.
+NOTE: The SAS macro _SESSREF_ was updated with the value MYSESSION.
+NOTE: The session is using 1 worker.
+NOTE: 'Public' is now the active caslib.
+3                                                          The SAS System                          Friday, July  9, 2021 07:51:00 AM
+
+NOTE: The CAS statement request to update one or more session options for session MYSESSION completed.
+87         
+88         caslib _all_ assign;
+NOTE: A SAS Library associated with a caslib can only reference library member names that conform to SAS Library naming conventions.
+NOTE: CASLIB CASUSER(alessiot) for session MYSESSION will be mapped to SAS Library CASUSER.
+NOTE: CASLIB CASUSERHDFS(alessiot) for session MYSESSION will be mapped to SAS Library CASUSERH.
+NOTE: CASLIB Formats for session MYSESSION will be mapped to SAS Library FORMATS.
+NOTE: CASLIB HSBC for session MYSESSION will be mapped to SAS Library HSBC.
+NOTE: CASLIB ModelPerformanceData for session MYSESSION will not be mapped to SAS Library ModelPerformanceData. The CASLIB name is 
+      not valid for use as a libref.
+NOTE: CASLIB Models for session MYSESSION will be mapped to SAS Library MODELS.
+NOTE: CASLIB Public for session MYSESSION will be mapped to SAS Library PUBLIC.
+NOTE: CASLIB Samples for session MYSESSION will be mapped to SAS Library SAMPLES.
+NOTE: CASLIB SystemData for session MYSESSION will not be mapped to SAS Library SystemData. The CASLIB name is not valid for use as 
+      a libref.
+NOTE: CASLIB mycaslib for session MYSESSION will be mapped to SAS Library MYCASLIB.
+89         
+90         
+91         /* Define library for storing dataset with performance data */
+92         libname bigdisk "&bigdiskloc." FILELOCKWAIT=30;
+NOTE: Libref BIGDISK was successfully assigned as follows: 
+      Engine:        V9 
+      Physical Name: /home/centos/perf-army/casperf_baseline-master
+93         
+94         /*Drop previous version of performance data from CAS*/
+95         proc casutil;
+NOTE: The UUID '210635ca-1e8b-b14a-bbbd-f05c7065bbf3' is connected using session MYSESSION.
+96         	
+96       !  droptable incaslib="&targlib." casdata="perfstats_mc";
+NOTE: Cloud Analytic Services dropped table perfstats_mc from caslib Public.
+NOTE: The Cloud Analytic Services server processed the request in 0.021078 seconds.
+97         run;
+
+98         
+99         /*Map longer than 8 character CASlib to 8 char SAS lib*/
+
+NOTE: PROCEDURE CASUTIL used (Total process time):
+      real time           0.07 seconds
+      cpu time            0.04 seconds
+      
+
+100        data _null_;
+101        	t=substr("&targlib.",1,8);
+102        	call symputX('tlib',t);
+103        run;
+
+NOTE: Invalid third argument to function SUBSTR at line 101 column 4.
+t=public _ERROR_=1 _N_=1
+NOTE: DATA statement used (Total process time):
+      real time           0.00 seconds
+      cpu time            0.01 seconds
+      
+
+104        
+105        %put &tlib.;
+public
+106        
+107        /*Load latest performance data to CAS*/
+4                                                          The SAS System                          Friday, July  9, 2021 07:51:00 AM
+
+108        data &tlib..perfstats_mc (promote=yes);
+109        	set bigdisk.perfstats_mc;
+110        run;
+
+NOTE: There were 1 observations read from the data set BIGDISK.PERFSTATS_MC.
+NOTE: The data set PUBLIC.PERFSTATS_MC has 1 observations and 12 variables.
+NOTE: The data set PERFSTATS_MC was promoted.
+NOTE: DATA statement used (Total process time):
+      real time           0.47 seconds
+      cpu time            0.03 seconds
+      
+
+111        quit;
+112        
+113        /*Save latest performance CAS table in the caslib*/
+114        proc casutil;
+NOTE: The UUID '210635ca-1e8b-b14a-bbbd-f05c7065bbf3' is connected using session MYSESSION.
+115        	
+115      !  save incaslib="&targlib." casdata="perfstats_mc" outcaslib="&targlib." casout="perfstats_mc" replace;
+NOTE: Cloud Analytic Services saved the file perfstats_mc.sashdat in caslib Public.
+NOTE: The Cloud Analytic Services server processed the request in 0.076396 seconds.
+116        run;
+
+117        quit;
+
+NOTE: PROCEDURE CASUTIL used (Total process time):
+      real time           0.09 seconds
+      cpu time            0.01 seconds
+      
+
+118        
+119        /*Drop latest data from CAS*/
+120        proc casutil;
+NOTE: The UUID '210635ca-1e8b-b14a-bbbd-f05c7065bbf3' is connected using session MYSESSION.
+121        	
+121      !  droptable casdata="&dataset.";
+ERROR: The table megacorp5_1m could not be located in caslib Public of Cloud Analytic Services.
+ERROR: The action stopped due to errors.
+NOTE: The Cloud Analytic Services server processed the request in 0.019979 seconds.
+122        run;
+
+123        quit;
+
+NOTE: The SAS System stopped processing this step because of errors.
+NOTE: PROCEDURE CASUTIL used (Total process time):
+      real time           0.03 seconds
+      cpu time            0.00 seconds
+      
+124        
+125        /*****************************************************************************/
+126        /*  Terminate the specified CAS session (mySession). No reconnect is possible*/
+127        /*****************************************************************************/
+128        
+129        cas mySession terminate;
+NOTE: Libref CASUSER has been deassigned.
+NOTE: Libref MYCASLIB has been deassigned.
+NOTE: Libref SAMPLES has been deassigned.
+NOTE: Libref PUBLIC has been deassigned.
+5                                                          The SAS System                          Friday, July  9, 2021 07:51:00 AM
+
+NOTE: Libref MODELS has been deassigned.
+NOTE: Libref HSBC has been deassigned.
+NOTE: Libref FORMATS has been deassigned.
+NOTE: Libref CASUSERH has been deassigned.
+NOTE: Deletion of the session MYSESSION was successful.
+NOTE: The default CAS session MYSESSION identified by SAS option SESSREF= was terminated. Use the OPTIONS statement to set the 
+      SESSREF= option to an active session.
+NOTE: Request to TERMINATE completed for session MYSESSION.
+
+ERROR: Errors printed on page 4.
+
+NOTE: SAS Institute Inc., SAS Campus Drive, Cary, NC USA 27513-2414
+NOTE: The SAS System used:
+      real time           4.94 seconds
+      cpu time            0.51 seconds
+      
